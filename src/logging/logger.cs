@@ -15,14 +15,17 @@ namespace ShadowUtilityLIB.logging
         {
             try
             {
-                if (Directory.Exists("./logs")) { }
-                else
+                if (!Directory.Exists("./logs"))
                 {
                     Directory.CreateDirectory("./logs");
                 }
                 foreach (string logFileLocation in Directory.GetFiles("./", "*.sl"))
                 {
-                    File.Move($"./{logFileLocation}", $"./logs/{logFileLocation}{DateTime.Now.ToFileTimeUtc().ToString()}.sl");
+                    // Puts UTC date and time at the end of logs' filenames
+                    string newFileName = $"{Path.GetFileNameWithoutExtension(logFileLocation)}_{DateTime.UtcNow:yyyyMMddHHmmss}.sl"; 
+                    string newFullPath = Path.Combine("./logs", newFileName);
+
+                    File.Move(logFileLocation, newFullPath);
                     logger.Debug(logFileLocation);
                 }
             }
@@ -30,7 +33,7 @@ namespace ShadowUtilityLIB.logging
             {
                 logger.Error($"{e}\n{e.Message}\n{e.InnerException}\n{e.Source}\n{e.Data}\n{e.HelpLink}\n{e.HResult}\n{e.StackTrace}\n{e.TargetSite}\n{e.GetBaseException()}");
             }
-            new Thread(new ThreadStart(() => {
+            new Thread(() => {
                 while (true)
                 {
                     Thread.Sleep(1000);
@@ -40,7 +43,7 @@ namespace ShadowUtilityLIB.logging
                         Log = new ConcurrentBag<string>();
                     }
                 }
-            })).Start();
+            }).Start();
             try
             {
                 string[] files = Directory.GetFiles("./logs", "*.sl");
@@ -55,21 +58,19 @@ namespace ShadowUtilityLIB.logging
                     File.WriteAllBytes(uncompressedLog + "c", compressedData);
                     File.Delete(uncompressedLog);
                 }
-                if (cfiles.Length > 10)
+                if (cfiles.Length <= 10) return;
+                
+                if (File.Exists("./logs.slcf"))
                 {
-                    if (File.Exists("./logs.slcf"))
-                    {
-                        File.Delete("./logs.slcf");
-                    }
-                    foreach (var file in cfiles)
-                    {
-                        logger.Log(file);
-                        var compressedData = File.ReadAllText(file);
-                        
-                        //File.AppendAllText("./logs.slcf", compressedData + "/@.@/"); Just delete the old logs
-                        File.Delete(file);
-                    }
-
+                    File.Delete("./logs.slcf");
+                }
+                foreach (var file in cfiles)
+                {
+                    logger.Log(file);
+                    var compressedData = File.ReadAllText(file);
+                    
+                    //File.AppendAllText("./logs.slcf", compressedData + "/@.@/"); Just delete the old logs
+                    File.Delete(file);
                 }
             }
             catch (Exception e)
@@ -100,11 +101,9 @@ namespace ShadowUtilityLIB.logging
         }
         public void Debug(string logmessage)
         {
-            if (ShadowLIB.IsDev)
-            {
-                Console.WriteLine($"[Debug] [{DateTime.UtcNow}] [{ModName}] [{ModVersion}] {logmessage}\n");
-                LogManager.Log.Add($"[Debug] [{DateTime.UtcNow}] [{ModName}] [{ModVersion}] {logmessage}\n");
-            }
+            if (!ShadowLIB.IsDev) return;
+            Console.WriteLine($"[Debug] [{DateTime.UtcNow}] [{ModName}] [{ModVersion}] {logmessage}\n");
+            LogManager.Log.Add($"[Debug] [{DateTime.UtcNow}] [{ModName}] [{ModVersion}] {logmessage}\n");
         }
     }
 }
